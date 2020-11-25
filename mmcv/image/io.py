@@ -19,8 +19,13 @@ try:
 except ImportError:
     Image = None
 
+try:
+    import tifffile
+except ImportError:
+    tifffile = None
+
 jpeg = None
-supported_backends = ['cv2', 'turbojpeg', 'pillow']
+supported_backends = ['cv2', 'turbojpeg', 'pillow', 'tifffile']
 
 imread_flags = {
     'color': IMREAD_COLOR,
@@ -130,9 +135,12 @@ def imread(img_or_path, flag='color', channel_order='bgr', backend=None):
         flag (str): Flags specifying the color type of a loaded image,
             candidates are `color`, `grayscale` and `unchanged`.
             Note that the `turbojpeg` backened does not support `unchanged`.
-        channel_order (str): Order of channel, candidates are `bgr` and `rgb`.
+        channel_order (str): Order of channel, candidates are `bgr` and `rgb`. 
+            You can use the tuple numeric order for tifffile, such as (4,3,2) means 
+            read the channel 4, 3 and 2, other channel will not read. 
+            channels are indexed from 0.
         backend (str | None): The image decoding backend type. Options are
-            `cv2`, `pillow`, `turbojpeg`, `None`. If backend is None, the
+            `cv2`, `pillow`, `turbojpeg`, `tifffile`, `None`. If backend is None, the
             global imread_backend specified by ``mmcv.use_backend()`` will be
             used. Default: None.
 
@@ -144,7 +152,7 @@ def imread(img_or_path, flag='color', channel_order='bgr', backend=None):
         backend = imread_backend
     if backend not in supported_backends:
         raise ValueError(f'backend: {backend} is not supported. Supported '
-                         "backends are 'cv2', 'turbojpeg', 'pillow'")
+                         "backends are 'cv2', 'turbojpeg', 'pillow', 'tifffile'")
     if isinstance(img_or_path, Path):
         img_or_path = str(img_or_path)
 
@@ -163,6 +171,11 @@ def imread(img_or_path, flag='color', channel_order='bgr', backend=None):
         elif backend == 'pillow':
             img = Image.open(img_or_path)
             img = _pillow2array(img, flag, channel_order)
+            return img
+        elif backend == 'tifffile':
+            img = tifffile.imread(img_or_path)
+            if isinstance(channel_order, tuple):
+                img = img[:,:,channel_order]
             return img
         else:
             flag = imread_flags[flag] if is_str(flag) else flag
